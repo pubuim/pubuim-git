@@ -1,23 +1,15 @@
 #!/bin/bash
-HOOKS="http://trigged1.dev.pubu.im/services/3nl22nke44yyuxy"
+HOOKS=""
 
-echo "post-receive start"
 # Read variables passed on by GIT
 read OLDREV NEWREV REFNAME
-echo "post-receive #1 $OLDREV,$NEWREV,$REFNAME"
 # Find out basic variables
 GIT_EXEC=${GIT_EXEC:-`which git`}
 REPO=${REPO:-`basename $PWD`}
-
-echo "post-receive start #2"
-# First or last commit might be 0, in case of branch/tag create or delete
 NULLREV="0000000000000000000000000000000000000000"
 [ "$NEWREV" = "$NULLREV" ] && USER_REV="$OLDREV" || USER_REV="$NEWREV"
-
-# User is either tag tagger or commit author
 USER=`$GIT_EXEC cat-file -p $USER_REV | grep -E '^tagger|^author' | sed -E 's/^(tagger|author) (.*) <.*$/\2/g'`
 
-# Record whether this is a tag or normal commit/branch
 if [ `$GIT_EXEC cat-file -t $USER_REV` != 'tag' ]; then
   TAG_OR_BRANCH='BRANCH'
   BRANCH=${REFNAME#refs/heads/}
@@ -25,8 +17,6 @@ else
   TAG_OR_BRANCH='TAG'
   BRANCH=${REFNAME#refs/tags/}
 fi
-
-echo "post-receive start #3: $USER，$BRANCH, $REPO"
 
 # Construct message
 if [ "$OLDREV" = "$NULLREV" ]; then
@@ -40,9 +30,8 @@ else
   # Commits pushed to existing branch
   GIT_EVENT='COMMIT'
   COUNT=`$GIT_EXEC log --pretty=oneline $OLDREV..$NEWREV | wc -l | tr -d ' '`
-  text=`$GIT_EXEC log $OLDREV..$NEWREV --format="%h: %s - %an"`
+  text=`$GIT_EXEC log $OLDREV..$NEWREV --format="%h: %s - %an"|sed ':a;N;$!ba;s/\n/\\\n/g'`
 fi
-echo "post-receive start #4:$GIT_EVENT,$text"
 
 [ -n "$HOOKS"  ] || {
   echo "Missing env HOOKS:"
@@ -51,7 +40,7 @@ echo "post-receive start #4:$GIT_EVENT,$text"
 }
 
 payload="{\"text\": \"$text\", \"user\": \"$USER\", \"branch\": \"$BRANCH\", \"repo\": \"$REPO\", \"count\": \"$COUNT\" ,\"event\": \"$GIT_EVENT\" ,\"tag_or_branch\": \"$TAG_OR_BRANCH\"}"
-echo "$payload"
+
 curl -X "POST" "$HOOKS" \
-	-H "Content-Type: application/json" \
-  -d "$payload"
+  -H "Content-Type: application/json" \
+  -d "$payload" >> /dev/null
