@@ -41,6 +41,6 @@ fi
 
 payload="{\"text\": \"$text\", \"user\": \"$USER\", \"branch\": \"$BRANCH\", \"repo\": \"$REPO\", \"count\": \"$COUNT\" ,\"event\": \"$GIT_EVENT\" ,\"tag_or_branch\": \"$TAG_OR_BRANCH\"}"
 
-curl -X "POST" "$HOOKS" \
+curl -fsSL -X "POST" "$HOOKS" \
   -H "Content-Type: application/json" \
-  -d "$payload" >> /dev/null
+  -d "$payload"
